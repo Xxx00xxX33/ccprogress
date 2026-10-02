@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">ccprogress in the Desktop app</title>
+  <desc id="desc">The band above the prompt in three states: a working plan at step 3 of 5 with green finished segments, an orange current segment and gray pending ones; the same band unfolded into a checklist; and a finished plan with all segments green and a dismiss button.</desc>
+
+  <defs>
+    <g id="check">
+      <circle r="9" fill="#22A06B"/>
+      <path d="M-4 0.4 -1.3 3 4 -2.6" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <g id="running">
+      <circle r="11" fill="none" stroke="#D97757" stroke-width="2" stroke-opacity="0.35"/>
+      <circle r="5.5" fill="#D97757"/>
+    </g>
+    <g id="pending">
+      <circle r="7.5" fill="none" stroke="#B9B4A9" stroke-width="2"/>
+    </g>
+    <g id="bar-working">
+      <rect x="0" width="24" height="5" rx="2.5" fill="#22A06B"/>
+      <rect x="28" width="24" height="5" rx="2.5" fill="#22A06B"/>
+      <rect x="56" width="24" height="5" rx="2.5" fill="#D97757" fill-opacity="0.6"/>
+      <rect x="84" width="24" height="5" rx="2.5" fill="#E3DFD5"/>
+      <rect x="112" width="24" height="5" rx="2.5" fill="#E3DFD5"/>
+    </g>
+    <g id="bar-done">
+      <rect x="0" width="24" height="5" rx="2.5" fill="#22A06B"/>
+      <rect x="28" width="24" height="5" rx="2.5" fill="#22A06B"/>
+      <rect x="56" width="24" height="5" rx="2.5" fill="#22A06B"/>
+      <rect x="84" width="24" height="5" rx="2.5" fill="#22A06B"/>
+      <rect x="112" width="24" height="5" rx="2.5" fill="#22A06B"/>
+    </g>
+  </defs>
+
+  <rect x="0.5" y="0.5" width="1199" height="719" rx="24" fill="#FBFAF7" stroke="#E6E2D8"/>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif">
+    <text x="64" y="76" font-size="28" font-weight="700" fill="#1F1E1C">Desktop app</text>
+    <text x="250" y="76" font-size="20" fill="#8A857B">the band above the prompt, for the whole turn</text>
+
+    <g id="working">
+      <text x="64" y="128" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="2" fill="#A8A398">WORKING</text>
+      <rect x="64" y="142" width="1072" height="76" rx="16" fill="#EFEDE6"/>
+      <use href="#running" x="100" y="180"/>
+      <text x="126" y="188" font-size="22" fill="#1F1E1C">Run the tests</text>
+      <use href="#bar-working" x="786" y="178"/>
+      <text x="938" y="187" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" fill="#8A857B">3/5</text>
+      <rect x="990" y="161" width="126" height="38" rx="9" fill="#FFFFFF" stroke="#D9D5CB"/>
+      <text x="1006" y="186" font-size="18" fill="#1F1E1C">View steps ▾</text>
+    </g>
+
+    <g id="unfolded">
+      <text x="64" y="266" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="2" fill="#A8A398">UNFOLDED</text>
+      <rect x="64" y="280" width="1072" height="278" rx="16" fill="#EFEDE6"/>
+      <use href="#running" x="100" y="318"/>
+      <text x="126" y="326" font-size="22" fill="#1F1E1C">Run the tests</text>
+      <use href="#bar-working" x="786" y="316"/>
+      <text x="938" y="325" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" fill="#8A857B">3/5</text>
+      <rect x="990" y="299" width="126" height="38" rx="9" fill="#FFFFFF" stroke="#D9D5CB"/>
+      <text x="1008" y="324" font-size="18" fill="#1F1E1C">Hide steps ▴</text>
+
+      <use href="#check" x="100" y="374"/>
+      <text x="126" y="381" font-size="20" fill="#8A857B">Create the project layout</text>
+      <use href="#check" x="100" y="412"/>
+      <text x="126" y="419" font-size="20" fill="#8A857B">Write the core logic</text>
+      <use href="#running" x="100" y="450"/>
+      <text x="126" y="457" font-size="20" font-weight="700" fill="#1F1E1C">Run the tests</text>
+      <use href="#pending" x="100" y="488"/>
+      <text x="126" y="495" font-size="20" fill="#1F1E1C">Fix the failing cases</text>
+      <use href="#pending" x="100" y="526"/>
+      <text x="126" y="533" font-size="20" fill="#1F1E1C">Write the README</text>
+    </g>
+
+    <g id="done">
+      <text x="64" y="606" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="2" fill="#A8A398">DONE</text>
+      <rect x="64" y="620" width="1072" height="76" rx="16" fill="#EFEDE6"/>
+      <use href="#check" x="100" y="658"/>
+      <text x="126" y="666" font-size="22" fill="#1F1E1C">All done</text>
+      <text x="222" y="666" font-size="22" fill="#8A857B">Ledger CLI</text>
+      <use href="#bar-done" x="740" y="656"/>
+      <text x="892" y="665" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" fill="#8A857B">5/5</text>
+      <rect x="944" y="639" width="126" height="38" rx="9" fill="#FFFFFF" stroke="#D9D5CB"/>
+      <text x="960" y="664" font-size="18" fill="#1F1E1C">View steps ▾</text>
+      <path d="M1094 650 1110 666 M1110 650 1094 666" stroke="#8A857B" stroke-width="2" stroke-linecap="round"/>
+    </g>
+  </g>
+</svg>

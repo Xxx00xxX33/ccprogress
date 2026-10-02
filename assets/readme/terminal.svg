@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600" role="img" aria-labelledby="title desc">
+  <title id="title">ccprogress in the terminal</title>
+  <desc id="desc">A terminal session where each progress report folds into one dim line in the transcript, and a continuous bar with green finished, orange current and gray remaining parts sits right above the spinner, followed by the step count and the current step.</desc>
+
+  <rect x="0.5" y="0.5" width="1199" height="599" rx="24" fill="#1C1B19" stroke="#2E2D2A"/>
+  <circle cx="44" cy="40" r="7" fill="#3A3936"/>
+  <circle cx="68" cy="40" r="7" fill="#3A3936"/>
+  <circle cx="92" cy="40" r="7" fill="#3A3936"/>
+  <text x="1136" y="46" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="600" fill="#8C8A84">Terminal</text>
+
+  <g id="session" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20">
+    <text x="56" y="106"><tspan fill="#4EBA65">●</tspan><tspan fill="#E8E6E1" dx="12">Bash(mkdir -p ledger tests)</tspan></text>
+    <text x="56" y="142" fill="#8C8A84">◦ Plan: 5 steps · Ledger CLI</text>
+    <text x="56" y="178"><tspan fill="#4EBA65">●</tspan><tspan fill="#E8E6E1" dx="12">Write(ledger/core.py)</tspan></text>
+    <text x="56" y="214" fill="#8C8A84">◦ 2/5 Write the core logic</text>
+    <text x="56" y="250"><tspan fill="#4EBA65">●</tspan><tspan fill="#E8E6E1" dx="12">Bash(python3 -m unittest)</tspan></text>
+    <text x="56" y="286" fill="#8C8A84">◦ 3/5 Run the tests</text>
+
+    <g id="bar-row">
+      <rect x="80" y="344" width="120" height="6" rx="3" fill="#22A06B"/>
+      <rect x="200" y="344" width="60" height="6" rx="3" fill="#D97757"/>
+      <rect x="260" y="344" width="108" height="6" rx="3" fill="#4A4844"/>
+      <text x="392" y="354" fill="#8C8A84">3/5</text>
+      <text x="452" y="354" fill="#E8E6E1">Run the tests</text>
+    </g>
+
+    <text x="56" y="414"><tspan fill="#D97757">✶ Unraveling…</tspan><tspan fill="#8C8A84"> (2m 14s · ↓ 18.4k tokens)</tspan></text>
+
+    <line x1="40" y1="470" x2="1160" y2="470" stroke="#3A3936" stroke-width="2"/>
+    <text x="56" y="512" fill="#E8E6E1">❯</text>
+    <rect x="82" y="494" width="11" height="24" fill="#8C8A84"/>
+    <line x1="40" y1="544" x2="1160" y2="544" stroke="#3A3936" stroke-width="2"/>
+  </g>
+
+  <g id="callouts" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20">
+    <path d="M436 214 H700" stroke="#5A5852" stroke-width="1.5" stroke-dasharray="4 6"/>
+    <circle cx="700" cy="214" r="4" fill="#8C8A84"/>
+    <text x="716" y="208" fill="#E8E6E1">Each report folds into one dim line</text>
+    <text x="716" y="236" fill="#8C8A84">instead of printing the whole step list</text>
+
+    <path d="M640 348 H700" stroke="#5A5852" stroke-width="1.5" stroke-dasharray="4 6"/>
+    <circle cx="700" cy="348" r="4" fill="#D97757"/>
+    <text x="716" y="342" fill="#E8E6E1">The bar sits right above the spinner</text>
+    <text x="716" y="370" fill="#8C8A84">green done · orange running · gray left</text>
+  </g>
+</svg>

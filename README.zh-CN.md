@@ -1,41 +1,30 @@
-# ccprogress
+<p align="center">
+  <img src="./assets/readme/hero.svg" width="100%" alt="ccprogress：在 spinner 旁边显示实时进度条，一眼看出 Claude Code 长会话做到了哪一步">
+</p>
 
-[English](README.md) | 简体中文
+<p align="center">
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-22A06B" alt="MIT 许可证"></a>
+  <img src="https://img.shields.io/badge/Claude%20Code-%E2%89%A5%202.1.287-D97757" alt="需要 Claude Code 2.1.287 或更高版本">
+  <img src="https://img.shields.io/badge/terminal%20%2B%20desktop-supported-1F1E1C" alt="支持终端和 Desktop">
+</p>
 
-给 Claude Code 长会话加一个进度条。默认的 spinner 只显示耗时和 token 数，ccprogress 把“现在做到哪一步、完成了几步、下一步是什么”补上。
+<p align="center"><a href="./README.md">English</a> · 简体中文</p>
 
-```text
-████████████░░░░░░░░░░░░ 3/7 编写数据迁移
-✳ 7m 30s · 123.8k tokens · Running tools…
-```
+长会话里，spinner 只会告诉你 Claude 已经干了多久、花了多少 token。**ccprogress** 把缺的那部分补上：整体计划是什么、现在在做哪一步、还剩几步，并且随着每一步开始和完成实时更新。
 
-它是一个 [mod](https://code.claude.com/docs/en/plugins/mods/overview)，也就是一种代码在 Claude Code 内部运行的插件，同时支持终端和 Claude Desktop 的 Code 标签页。
+## 效果
 
-## 功能
+<p align="center">
+  <img src="./assets/readme/desktop.svg" width="100%" alt="在 Desktop 里，输入框上方的进度栏在执行中显示当前步骤、分段进度条和步数，可以展开成步骤清单，全部完成后变成绿色">
+</p>
 
-- **spinner 上方的进度条**：Claude 干活时显示已完成步数/总步数和当前步骤。终端里用方块字符画，Desktop 里画成 SVG 进度条。
-- **空闲时显示在输入框上方**：方便看清停在了哪一步。计划全部完成后，下一次发消息时自动清除。
-- **`/progress` 面板**：显示目标和完整步骤清单（`✓` 已完成，`▶` 进行中，`○` 未开始）。`/progress clear` 用来清空。
-- **`/resume` 后自动恢复**：每个会话的计划都会单独保存。
-- **不刷屏**：在终端里，每次上报进度都折叠成一行灰色摘要，比如 `◦ 3/5 运行测试`，不再展开整份步骤列表。
-- **子代理不会覆盖进度条**：只显示主对话的计划。
-- **不联网，也不额外调用模型。**
+在 **Desktop** 里，进度条在整个执行过程中都显示在输入框上方。点 **查看步骤** 会原地展开清单；计划完成后可以点关闭，或者在你发下一条消息时自动清除。
 
-## 步骤数据从哪来
+<p align="center">
+  <img src="./assets/readme/terminal.svg" width="100%" alt="在终端里，一条连续的进度条紧贴在 spinner 上方，每次上报进度在 transcript 里只占一行灰色摘要">
+</p>
 
-进度条得有人告诉它有哪些步骤。ccprogress 会按顺序取当前会话里第一个可用的来源：
-
-| 来源 | 什么时候用 |
-| --- | --- |
-| 内置 `TodoWrite` 工具 | 提供该工具的版本，进度条跟随 todo 列表。 |
-| 内置任务列表（`TaskCreate` / `TaskUpdate`） | 提供这些工具的版本，每次更新后读取 `~/.claude/tasks/<session>/` 下的任务文件。 |
-| 插件自带的 `update_progress` 工具 | 没有内置列表的版本，比如目前的 Desktop。插件会在系统提示里加一小段说明，请 Claude 在三步及以上的任务里上报计划。 |
-
-## 环境要求
-
-- Claude Code **v2.1.287** 或更高。从这个版本起 mod 默认开启，可以用 `claude --version` 查看。
-- 终端（`claude`），或 Desktop 的 Code 标签页（WSL 会话除外）。
-- 在 VS Code 插件、`claude -p` 和 Agent SDK 里，hook 照常运行但不会画界面，这时 `/progress` 会改为输出文字摘要。
+在**终端**里，进度条紧贴在 spinner 上方。每次上报进度在 transcript 里只占一行灰色摘要，比如 `◦ 3/5 运行测试`，不会把整份步骤列表刷屏。
 
 ## 安装
 
@@ -49,33 +38,56 @@ claude plugin install ccprogress@ccprogress
 
 也可以在会话里执行 `/plugin marketplace add amigoer/ccprogress` 和 `/plugin install ccprogress@ccprogress`。已经打开的会话需要执行一次 `/reload-plugins`。装在用户级别的插件，终端和 Desktop 都会加载。
 
-## 使用
+装好后，给 Claude 一个需要好几步的任务，它一列出计划，进度条就会出现。
 
-给 Claude 一个多步骤的任务。Claude 上报计划后进度条就会出现，并随着步骤完成往前走。
+## 原理
+
+ccprogress 是一个 [mod](https://code.claude.com/docs/en/plugins/mods/overview)：一种代码在 Claude Code 内部运行、可以在界面上绘制内容的插件。
+
+**步骤从哪来。** 进度条得有人告诉它有哪些步骤，ccprogress 按顺序使用当前会话里第一个可用的来源：
+
+1. 内置的 `TodoWrite` 工具（版本提供时）。
+2. 内置的任务列表（`TaskCreate` / `TaskUpdate`），每次更新后读回 `~/.claude/tasks/` 下的任务文件。
+3. 都没有时，用插件自带的 `update_progress` 工具，比如目前的 Desktop。插件会在系统提示里加一小段说明，请 Claude 在三步及以上的任务里上报计划，并在每一步开始和完成时更新。
+
+**画在哪里。**
+
+- **终端**：执行中画在 spinner 正上方，空闲时画在输入框上方。
+- **Desktop**：始终画在输入框上方。Desktop 目前由自己绘制 spinner 那一行，不接受 mod 在那里画内容。
+- **其他环境**（VS Code 插件、`claude -p`、Agent SDK）：不绘制界面，`/progress` 改为输出文字摘要。
+
+**颜色。** 绿色是已完成，橙色是进行中，灰色是还没开始。
+
+## 命令
 
 | 命令 | 作用 |
 | --- | --- |
-| `/progress` | 打开步骤清单面板，Claude 干活时也能用。 |
+| `/progress` | 查看完整步骤清单：终端里打开侧边面板，Desktop 里展开进度栏。Claude 干活时也能用。 |
 | `/progress clear` | 清空当前计划。 |
 
-## 开销与隐私
+## 须知
 
-- 每次更新进度是一次很小的工具调用，一个任务大约多花几百 token。系统提示里的那段说明大约 80 个英文单词，而且只在 `update_progress` 工具可用时才会加上。
-- 计划保存在 `~/.claude/plugins/store/` 下的插件存储里，只保留最近 50 个会话。
-- 插件只读取 `~/.claude/tasks/` 下的文件，而且只在任务列表工具运行时读。
-- mod 以你的权限运行。安装前可以对插件执行 `claude plugin validate`，查看它挂了哪些事件、调用了哪些 API。
+- **版本要求**：Claude Code v2.1.287 或更高，从这个版本起 mod 默认开启，可以用 `claude --version` 查看。Desktop 的 WSL 会话不加载插件。
+- **子代理**不会覆盖进度条，只显示主对话的计划。
+- **恢复会话**：每个会话的计划都会单独保存，`/resume` 后自动恢复，只保留最近 50 个会话。
+- **开销**：每次更新是一次很小的工具调用，一个任务大约多花几百 token。系统提示里那段说明约 80 个英文单词，只在 `update_progress` 工具可用时才会加上。
+- **隐私**：不联网，也不额外调用模型。计划保存在 `~/.claude/plugins/store/` 下的插件存储里；只在任务列表工具运行时读取 `~/.claude/tasks/` 下的文件。
+- **信任**：mod 以你的权限运行。`claude plugin validate plugins/ccprogress` 会列出它挂了哪些事件、调用了哪些 API。
+- **早期阶段**：mods API 仍在随 Claude Code 版本变化。
 
 ## 开发
 
 ```text
-.claude-plugin/marketplace.json      本仓库对外提供的 marketplace
+.claude-plugin/marketplace.json     本仓库对外提供的 marketplace
 plugins/ccprogress/
-├── .claude-plugin/plugin.json       插件清单
-├── hooks/hooks.json                 指向 hooks 模块
-├── hooks/register.tsx               事件、工具、命令和界面绘制
-├── hooks/plan.ts                    纯逻辑：步骤解析、进度条
-├── types/index.d.ts                 $.state 的类型约定
-└── tests/                           claude plugin test 测试
+├── .claude-plugin/plugin.json      插件清单
+├── hooks/register.tsx              事件、工具、命令和界面绘制
+├── hooks/view.tsx                  各界面下的进度行、清单和 transcript 摘要
+├── hooks/icons.ts                  Desktop 用的 SVG 图标和分段进度条
+├── hooks/plan.ts                   步骤解析、进度汇总和终端进度条
+├── hooks/words.ts                  中英文文案
+├── types/index.d.ts                $.state 的类型约定
+└── tests/                          claude plugin test 测试
 ```
 
 从本地仓库加载插件，保存文件后会自动重载：
@@ -84,7 +96,7 @@ plugins/ccprogress/
 claude --plugin-dir plugins/ccprogress
 ```
 
-在 Desktop 里调试：把 `plugins/ccprogress` 的绝对路径加到 `~/.claude/settings.json` 的 `env` 里的 `CLAUDE_CODE_PLUGIN_DIRS`。想要保存即重载，就在同一处再设置 `CLAUDE_CODE_PLUGIN_DIR_WATCH` 为 `1`。然后新开一个会话。
+在 Desktop 里调试：把 `plugins/ccprogress` 的绝对路径加到 `~/.claude/settings.json` 的 `env` 里的 `CLAUDE_CODE_PLUGIN_DIRS`，在同一处把 `CLAUDE_CODE_PLUGIN_DIR_WATCH` 设为 `1` 以便保存即重载，然后新开一个会话。如果已经安装过 ccprogress，先把它停用，避免加载两份。
 
 校验和测试：
 
@@ -96,17 +108,15 @@ claude plugin validate --strict plugins/ccprogress
 claude plugin test plugins/ccprogress
 ```
 
-想在编辑器里得到类型提示，就在仓库根目录启动的会话里执行 `/plugin-types`，它会把类型声明写到 `.claude/types`（`tsconfig.json` 已经包含这个目录）。然后做类型检查：
+想在编辑器里得到类型提示，就在仓库根目录启动的会话里执行 `/plugin-types`，它会把类型声明写到 `.claude/types`（`tsconfig.json` 已经包含这个目录）。然后：
 
 ```bash
 npx -p typescript@5 tsc -p .
 ```
 
-mods API 目前还是 early access，不同版本之间会有变化，以 `/plugin-types` 为你的版本生成的类型为准。
-
 ## 声明
 
-这是一个社区项目，与 Anthropic 没有关联，也没有得到 Anthropic 的背书。“Claude” 是 Anthropic, PBC 的商标。
+ccprogress 是社区项目，与 Anthropic 没有关联，也没有得到 Anthropic 的背书。“Claude” 是 Anthropic, PBC 的商标。
 
 ## 许可证
 
