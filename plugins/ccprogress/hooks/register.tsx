@@ -1,0 +1,315 @@
+import { atom, read, update } from 'claude-code'
+import type { EngineInterface, Register } from 'claude-code'
+
+import type { ProgressPlan, ProgressSource, ProgressStep } from '../types'
+import { hasSteps, isCjk, summarize, toSteps } from './plan'
+import { checklist, progressRow, textSummary } from './view'
+import { wordsFor } from './words'
+
+const PANE = 'ccprogress'
+const TOOL_NAME = 'update_progress'
+const TOOL = 'mcp__ccprogress__update_progress'
+const KEEP_SESSIONS = 50
+const BUILTIN_LISTS = ['TodoWrite', 'TaskCreate']
+const TASK_TOOLS = ['TaskCreate', 'TaskUpdate']
+// The terminal's Enter, the Desktop app (an SDK host) and Remote Control.
+const HUMAN_ORIGINS = ['composer', 'sdk', 'bridge']
+
+const plan = atom({ plugin: 'ccprogress', key: 'plan' } as const, null)
+const isExpanded = atom({ plugin: 'ccprogress', key: 'isExpanded' } as const, false)
+const isWorking = atom({ plugin: 'ccprogress', key: 'isWorking' } as const, false)
+
+const TOOL_DESCRIPTION = [
+  'Show the user a live progress bar for the current task.',
+  'Call it before starting any task that takes three or more distinct steps, listing every step,',
+  'then again each time a step starts or finishes, always sending the whole list.',
+  'Keep exactly one step in_progress while work is under way. Do not use it for single-step requests or questions.',
+].join(' ')
+
+const GUIDE = [
+  '# Progress reporting',
+  `The user follows long tasks through a progress bar fed by the ${TOOL} tool.`,
+  'When a task takes three or more distinct steps, call it before the first step with every step listed,',
+  'and again whenever a step starts or finishes, sending the full list with exactly one step in_progress.',
+  "Write step titles as short verb phrases (under eight words) in the user's language.",
+  'Revise the list when the plan changes. Skip it for one-step requests and plain questions.',
+].join('\n')
+
+const INPUT_SCHEMA = {
+  type: 'object',
+  properties: {
+    goal: { type: 'string', description: 'The whole task in a few words' },
+    steps: {
+      type: 'array',
+      description: 'Every step of the task, in order',
+      items: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'A short verb phrase' },
+          status: { type: 'string', enum: ['pending', 'in_progress', 'completed'] },
+        },
+        required: ['title', 'status'],
+      },
+    },
+  },
+  required: ['steps'],
+}
+
+function isPlan(value: unknown): value is ProgressPlan {
+  return typeof value === 'object' && value !== null && Array.isArray((value as ProgressPlan).steps)
+}
+
+async function persist($: EngineInterface, next: ProgressPlan | null) {
+  await update($, plan, () => next)
+  if (next === null) await update($, isExpanded, () => false)
+  const key = `plan:${await $.session.id()}`
+  if (next === null) await $.store.delete(key)
+  else await $.store.set(key, next)
+}
+
+async function restore($: EngineInterface, sessionId: string) {
+  const saved = await $.store.get(`plan:${sessionId}`)
+  await update($, plan, () => (isPlan(saved) ? saved : null))
+}
+
+// Each session keeps its plan for /resume; only the newest few are worth keeping.
+async function prune($: EngineInterface) {
+  const keys = (await $.store.keys()).filter(key => key.startsWith('plan:'))
+  if (keys.length <= KEEP_SESSIONS) return
+  const dated = await Promise.all(
+    keys.map(async key => {
+      const value = await $.store.get(key)
+      return { key, at: isPlan(value) ? value.updatedAt : 0 }
+    }),
+  )
+  dated.sort((a, b) => b.at - a.at)
+  for (const { key } of dated.slice(KEEP_SESSIONS)) await $.store.delete(key)
+}
+
+async function adopt($: EngineInterface, steps: ProgressStep[], source: ProgressSource, goal?: string) {
+  if (steps.length === 0) return persist($, null)
+  const previous = await read($, plan)
+  await persist($, {
+    goal: goal ?? previous?.goal ?? '',
+    steps,
+    source,
+    updatedAt: await $.clock.now(),
+  })
+}
+
+// The task list tools write one JSON file per task; reading them back is
+// sturdier than replaying TaskCreate/TaskUpdate inputs.
+async function readTaskList($: EngineInterface): Promise<ProgressStep[] | null> {
+  const home = await $.env.get('HOME')
+  const configDir = (await $.env.get('CLAUDE_CONFIG_DIR')) ?? (home ? `${home}/.claude` : undefined)
+  if (configDir === undefined) return null
+  const listId = (await $.env.get('CLAUDE_CODE_TASK_LIST_ID')) ?? (await $.session.id())
+  const dir = `${configDir}/tasks/${listId}`
+  try {
+    const files = (await $.fs.list(dir)).filter(entry => entry.kind === 'file' && entry.name.endsWith('.json'))
+    const tasks = await Promise.all(
+      files.map(async entry => {
+        try {
+          return JSON.parse(await $.fs.read(`${dir}/${entry.name}`)) as Record<string, unknown>
+        } catch {
+          return null
+        }
+      }),
+    )
+    const order = (task: Record<string, unknown>) => Number(task.id) || 0
+    return toSteps(
+      tasks
+        .filter((task): task is Record<string, unknown> => task !== null && task.status !== 'deleted')
+        .sort((a, b) => order(a) - order(b)),
+    )
+  } catch {
+    return null
+  }
+}
+
+export const register: Register = on => {
+  on('session.start', async ($, e, next) => {
+    const tools = await $.tool.list()
+    if (!tools.some(tool => BUILTIN_LISTS.includes(tool.name))) {
+      await $.tool.register({ name: TOOL_NAME, description: TOOL_DESCRIPTION, inputSchema: INPUT_SCHEMA })
+    }
+    await $.command.register({
+      name: 'progress',
+      description: 'Show the current task progress',
+      argumentHint: '[clear]',
+      immediate: true,
+    })
+    await restore($, await $.session.id())
+    await prune($)
+    return next(e)
+  })
+
+  // /clear, /resume and /branch reset $.state without a new session.start.
+  on('classic.SessionStart', { source: ['clear', 'resume', 'fork'] }, async ($, e, next) => {
+    await restore($, e.session_id)
+    return next(e)
+  })
+
+  on('prompt.compose', async ($, e, next) => {
+    const composed = await next(e)
+    if (!e.tools.includes(TOOL)) return composed
+    return {
+      sections: [...composed.sections, { id: 'ccprogress:guide', text: GUIDE, scope: 'session' as const }],
+    }
+  })
+
+  // A finished plan stays on screen until the person moves on.
+  on('prompt.submit', async ($, e, next) => {
+    if (HUMAN_ORIGINS.includes(e.origin.kind)) {
+      const p = await read($, plan)
+      if (hasSteps(p) && summarize(p).isComplete) await persist($, null)
+    }
+    return next(e)
+  })
+
+  on('tool.call', { tool: TOOL }, async ($, e) => {
+    const input = e as unknown as { goal?: unknown; steps?: unknown }
+    const steps = toSteps(input.steps)
+    if (steps.length === 0) {
+      return { deny: 'steps must be a non-empty list of { title, status }.' }
+    }
+    if (e.agentId !== undefined) {
+      return { result: 'Noted. Only the main conversation plan is shown to the user.' }
+    }
+    const goal = typeof input.goal === 'string' && input.goal.trim() !== '' ? input.goal.trim() : undefined
+    await adopt($, steps, 'tool', goal)
+    const s = summarize({ goal: '', steps, source: 'tool', updatedAt: 0 })
+    return { result: `Progress shown to the user: ${s.done}/${s.total} steps done.` }
+  })
+
+  // Built-in task lists, where the build has them, feed the same view.
+  on('tool.call', async ($, e, next) => {
+    const ran = await next(e)
+    const name: string = e.tool
+    if (e.agentId !== undefined || ran.deny !== undefined || ran.isError === true) return ran
+    if (name === 'TodoWrite') {
+      await adopt($, toSteps((e as unknown as { todos?: unknown }).todos), 'todo')
+    } else if (TASK_TOOLS.includes(name)) {
+      const steps = await readTaskList($)
+      if (steps !== null) await adopt($, steps, 'tasks')
+    }
+    return ran
+  })
+
+  on('command.run', { command: 'progress' }, async ($, e) => {
+    const p = await read($, plan)
+    const words = wordsFor(isCjk(p))
+    if (e.args.trim() === 'clear') {
+      await persist($, null)
+      return { text: words.cleared }
+    }
+    const surfaces = await $.session.surfaces()
+    if (!surfaces.some(surface => surface === 'terminal' || surface === 'desktop')) {
+      return { text: textSummary(p) }
+    }
+    if (surfaces.includes('terminal')) {
+      const opened = await $.ui.open({ id: PANE, title: 'Progress' })
+      if (opened.isPlaced) return {}
+    }
+    // The Desktop app does not seat a pane here, so the band unfolds instead.
+    if (!hasSteps(p)) return { text: words.empty }
+    await update($, isExpanded, () => true)
+    return {}
+  })
+
+  // Subagent runs raise no turn.start, and their turn.complete carries an agentId.
+  on('turn.start', async ($, e, next) => {
+    await update($, isWorking, () => true)
+    return next(e)
+  })
+
+  on('turn.complete', async ($, e, next) => {
+    if (e.agentId === undefined) await update($, isWorking, () => false)
+    return next(e)
+  })
+
+  // The terminal draws the bar right above the spinner's time and tokens. The
+  // Desktop app draws its spinner row itself and takes no tree or props there.
+  on('ui.render', { component: 'Spinner' }, async ($, e, next) => {
+    const p = await read($, plan)
+    if (e.surface !== 'terminal' || !hasSteps(p)) return next(e)
+    const theirs = await next(e)
+    const kit = $.ui.resolve(e)
+    const { Box } = kit
+    return (
+      <Box flexDirection="column">
+        {progressRow(kit, p, { surface: e.surface, columns: e.viewport?.columns, isWorking: true })}
+        {theirs}
+      </Box>
+    )
+  })
+
+  // The band carries the bar whenever the spinner row cannot: while idle, and on
+  // the Desktop app throughout. Unfolded, it lists every step.
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    if (e.props.hasSurvey || e.props.view.agentId !== undefined) return next(e)
+    const p = await read($, plan)
+    const expanded = await read($, isExpanded)
+    const isSpinnerShowing = e.props.isWorking && e.surface === 'terminal'
+    if (!hasSteps(p) || (isSpinnerShowing && !expanded)) return next(e)
+    const kit = $.ui.resolve(e)
+    const { Box, Button, Text } = kit
+    const s = summarize(p)
+    const words = wordsFor(isCjk(p))
+    // Keep what other mods draw here, but not the engine's empty band.
+    const below = await next(e)
+    const lead = isSpinnerShowing ? (
+      <Box flexGrow={1} flexShrink={1}>
+        <Text dimColor wrap="truncate-end">
+          {p.goal !== '' ? p.goal : words.stepsDone(s.done, s.total)}
+        </Text>
+      </Box>
+    ) : (
+      progressRow(kit, p, { surface: e.surface, columns: e.props.bodyColumns, isWorking: e.props.isWorking })
+    )
+    const dismiss =
+      e.surface === 'terminal' ? (
+        <Button key="dismiss" label="×" plain onPress={() => persist($, null)} />
+      ) : (
+        <Button key="dismiss" role="dismiss" label={words.dismiss} onPress={() => persist($, null)} />
+      )
+    return (
+      <Box flexDirection="column">
+        <Box flexDirection="row" alignItems="center" columnGap={2}>
+          {lead}
+          <Box flexDirection="row" alignItems="center" columnGap={1} flexShrink={0}>
+            <Button
+              key="toggle"
+              label={expanded ? `${words.hideSteps} ▴` : `${words.viewSteps} ▾`}
+              onPress={() => update($, isExpanded, value => !value)}
+            />
+            {s.isComplete && dismiss}
+          </Box>
+        </Box>
+        {expanded && (
+          <Box marginTop={1} flexDirection="column">
+            {checklist(kit, e.surface, p, e.props.isWorking)}
+          </Box>
+        )}
+        {below.type !== 'engine' && below}
+      </Box>
+    )
+  })
+
+  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
+    const kit = $.ui.resolve(e)
+    const { Box, Text, Button } = kit
+    const p = await read($, plan)
+    const working = await read($, isWorking)
+    const words = wordsFor(isCjk(p))
+    if (!hasSteps(p)) return <Text dimColor>{words.empty}</Text>
+    return (
+      <Box flexDirection="column" rowGap={1}>
+        {p.goal !== '' && <Text bold>{p.goal}</Text>}
+        {progressRow(kit, p, { surface: e.surface, columns: e.props.bodyColumns, isWorking: working })}
+        {checklist(kit, e.surface, p, working)}
+        <Button key="clear" label={words.clear} onPress={() => persist($, null)} />
+      </Box>
+    )
+  })
+}
