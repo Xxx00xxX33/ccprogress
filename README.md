@@ -6,6 +6,7 @@
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-22A06B" alt="MIT license"></a>
   <img src="https://img.shields.io/badge/Claude%20Code-%E2%89%A5%202.1.287-D97757" alt="Requires Claude Code 2.1.287 or later">
   <img src="https://img.shields.io/badge/terminal%20%2B%20desktop-supported-1F1E1C" alt="Works in the terminal and the Desktop app">
+  <a href="https://linux.do"><img src="https://img.shields.io/badge/LINUX%20DO-community-FFB003" alt="LINUX DO community"></a>
 </p>
 
 <p align="center">English · <a href="./README.zh-CN.md">简体中文</a></p>

@@ -6,6 +6,7 @@
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-22A06B" alt="MIT 许可证"></a>
   <img src="https://img.shields.io/badge/Claude%20Code-%E2%89%A5%202.1.287-D97757" alt="需要 Claude Code 2.1.287 或更高版本">
   <img src="https://img.shields.io/badge/terminal%20%2B%20desktop-supported-1F1E1C" alt="支持终端和 Desktop">
+  <a href="https://linux.do"><img src="https://img.shields.io/badge/LINUX%20DO-%E7%A4%BE%E5%8C%BA-FFB003" alt="LINUX DO 社区"></a>
 </p>
 
 <p align="center"><a href="./README.md">English</a> · 简体中文</p>
