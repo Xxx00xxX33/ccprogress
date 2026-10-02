@@ -17,6 +17,7 @@ It is a [mod](https://code.claude.com/docs/en/plugins/mods/overview): a plugin w
 - **Bar above the prompt** while the session is idle, so you can see where the work stopped. A finished plan clears when you send your next prompt.
 - **`/progress` pane** with the goal and the full checklist (`✓` done, `▶` running, `○` pending). `/progress clear` resets it.
 - **Survives `/resume`**: each session's plan is saved and restored.
+- **Quiet transcript**: in the terminal, each progress report folds into one dim line such as `◦ 3/5 Run the tests` instead of the whole step list.
 - **Subagents can't take over the bar**: only the main conversation's plan is shown.
 - **No network calls and no extra model calls.**
 

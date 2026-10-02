@@ -62,20 +62,23 @@ describe('bar', () => {
     expect(filled(1, 0, 20)).toBe(0)
   })
 
-  test('draws one terminal segment per step', async () => {
+  test('draws the terminal bar as one continuous line', async () => {
     const runs = barRuns(
       [
         { title: 'a', status: 'completed' },
         { title: 'b', status: 'in_progress' },
         { title: 'c', status: 'pending' },
       ],
-      14,
+      12,
     )
-    expect(runs.map(run => run.tone)).toEqual(['done', 'pending', 'current', 'pending', 'pending'])
-    expect(runs[0]?.text).toBe('━━━━')
+    expect(runs).toEqual([
+      { text: '━━━━', tone: 'done' },
+      { text: '━━━━', tone: 'current' },
+      { text: '━━━━', tone: 'pending' },
+    ])
   })
 
-  test('turns continuous for long plans and keeps the width', async () => {
+  test('keeps the width for long plans', async () => {
     const steps: ProgressStep[] = Array.from({ length: 20 }, (_, i) => ({
       title: `s${i}`,
       status: i < 10 ? 'completed' : i === 10 ? 'in_progress' : 'pending',

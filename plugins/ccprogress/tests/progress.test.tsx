@@ -55,8 +55,8 @@ test('the terminal draws the bar right above the spinner', async ($, on) => {
   const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'Spinner', props: SPINNER })
   expect(await ui.find({ type: 'Text', text: 'Write the fix' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: '2/3' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: '●' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /━/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '●' })).toBeUndefined()
   expect(await ui.find({ type: 'Svg' })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: 'engine…' })).toBeDefined()
 })
@@ -238,4 +238,59 @@ test('the system prompt explains the tool only when it is offered', async ($, on
 
   const absent = await $.prompt.compose({ ...base, tools: ['Read'] })
   expect(absent.sections.map(section => section.id)).toEqual(['intro'])
+})
+
+const toolRow = (input: unknown, flags: Partial<{ isErrored: boolean }> = {}) =>
+  ({
+    tool_use_id: 'tu-1',
+    tool: TOOL,
+    input,
+    isRunning: false,
+    isErrored: flags.isErrored ?? false,
+    isInterrupted: false,
+  }) as RenderPropsOf['ToolUse']
+
+test('the terminal folds each report into one line and hides its result', async ($, on) => {
+  world(on)
+  const row = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'ToolUse', props: toolRow({ steps: STEPS }) })
+  expect(await row.find({ type: 'Text', text: '◦ 2/3 Write the fix' })).toBeDefined()
+  expect(await row.find({ type: 'Text', text: 'engine' })).toBeUndefined()
+
+  const result = await $.ui.mount({
+    plugin: PLUGIN,
+    surface: 'terminal',
+    component: 'ToolResult',
+    props: { tool_use_id: 'tu-1', tool: TOOL, output: 'Progress shown', isErrored: false } as RenderPropsOf['ToolResult'],
+  })
+  expect(await result.findAll({ type: 'Text' })).toHaveLength(0)
+})
+
+test('the folded line tells the plan, the step and the finish apart', async ($, on) => {
+  world(on)
+  const lineOf = async (input: unknown) => {
+    const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'ToolUse', props: toolRow(input) })
+    const found = await ui.find({ type: 'Text' })
+    await ui.unmount()
+    return found?.text
+  }
+  const fresh = [
+    { title: '建目录结构', status: 'in_progress' },
+    { title: '写核心逻辑', status: 'pending' },
+  ]
+  expect(await lineOf({ goal: '记账工具', steps: fresh })).toBe('◦ 计划 2 步 · 记账工具')
+  expect(await lineOf({ steps: DONE })).toBe('◦ 3/3 All done')
+})
+
+test('errors and the desktop keep the engine tool rows', async ($, on) => {
+  world(on)
+  const errored = await $.ui.mount({
+    plugin: PLUGIN,
+    surface: 'terminal',
+    component: 'ToolUse',
+    props: toolRow({ steps: STEPS }, { isErrored: true }),
+  })
+  expect(await errored.find({ type: 'Text', text: 'engine' })).toBeDefined()
+
+  const desktop = await $.ui.mount({ plugin: PLUGIN, surface: 'desktop', component: 'ToolUse', props: toolRow({ steps: STEPS }) })
+  expect(await desktop.find({ type: 'Text', text: 'engine' })).toBeDefined()
 })

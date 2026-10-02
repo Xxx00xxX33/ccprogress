@@ -3,7 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { ProgressPlan, ProgressSource, ProgressStep } from '../types'
 import { hasSteps, isCjk, summarize, toSteps } from './plan'
-import { checklist, progressRow, textSummary } from './view'
+import { checklist, progressRow, reportLine, TERMINAL_INDENT, textSummary } from './view'
 import { wordsFor } from './words'
 
 const PANE = 'ccprogress'
@@ -236,9 +236,10 @@ export const register: Register = on => {
     const theirs = await next(e)
     const kit = $.ui.resolve(e)
     const { Box } = kit
+    // The spinner brings its own blank line above it; ours sets the bar off the transcript.
     return (
       <Box flexDirection="column">
-        {progressRow(kit, p, { surface: e.surface, columns: e.viewport?.columns, isWorking: true })}
+        <Box marginTop={1}>{progressRow(kit, p, { surface: e.surface, columns: e.viewport?.columns, isWorking: true })}</Box>
         {theirs}
       </Box>
     )
@@ -259,7 +260,7 @@ export const register: Register = on => {
     // Keep what other mods draw here, but not the engine's empty band.
     const below = await next(e)
     const lead = isSpinnerShowing ? (
-      <Box flexGrow={1} flexShrink={1}>
+      <Box paddingLeft={TERMINAL_INDENT} flexShrink={1}>
         <Text dimColor wrap="truncate-end">
           {p.goal !== '' ? p.goal : words.stepsDone(s.done, s.total)}
         </Text>
@@ -294,6 +295,25 @@ export const register: Register = on => {
         {below.type !== 'engine' && below}
       </Box>
     )
+  })
+
+  // The terminal prints each report's whole step list; fold it to one dim line and
+  // drop its result. Errors keep the engine's row, and the Desktop app folds tool
+  // rows on its own.
+  on('ui.render', { component: 'ToolUse', props: { tool: TOOL } }, async ($, e, next) => {
+    if (e.surface !== 'terminal' || e.props.isErrored || e.props.isInterrupted) return next(e)
+    const steps = toSteps((e.props.input as { steps?: unknown } | undefined)?.steps)
+    if (steps.length === 0) return next(e)
+    const goal = (e.props.input as { goal?: unknown }).goal
+    const { Text } = $.ui.resolve(e)
+    const line = reportLine({ goal: typeof goal === 'string' ? goal : '', steps, source: 'tool', updatedAt: 0 })
+    return <Text dimColor wrap="truncate-end">◦ {line}</Text>
+  })
+
+  on('ui.render', { component: 'ToolResult', props: { tool: TOOL } }, async ($, e, next) => {
+    if (e.surface !== 'terminal' || e.props.isErrored) return next(e)
+    const { Box } = $.ui.resolve(e)
+    return <Box />
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {

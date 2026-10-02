@@ -32,16 +32,11 @@ function toneProps(tone: Tone) {
   return { dimColor: true }
 }
 
-function phaseIcon(kit: Kit, surface: RenderSurface, phase: Phase): RenderNode {
-  const Svg = svgOf(kit, surface)
-  if (Svg) {
-    // Only an interactive SVG animates; the static states stay plain images.
-    return <Svg source={phaseIconSvg(phase, PALETTE)} alt={PHASE_ALT[phase]} width={16} height={16} isInteractive={phase === 'working'} />
-  }
-  const { Text } = kit
-  if (phase === 'done') return <Text color={SUCCESS}>✓</Text>
-  if (phase === 'working') return <Text color={ACCENT}>●</Text>
-  return <Text color={ACCENT}>○</Text>
+// Desktop only: the terminal row carries no icon, so it never reads as a tool call.
+function phaseIcon(kit: Kit, phase: Phase): RenderNode {
+  const { Svg } = kit as Elements['desktop']
+  // Only an interactive SVG animates; the static states stay plain images.
+  return <Svg source={phaseIconSvg(phase, PALETTE)} alt={PHASE_ALT[phase]} width={16} height={16} isInteractive={phase === 'working'} />
 }
 
 function stepIcon(kit: Kit, surface: RenderSurface, status: ProgressStatus, isWorking: boolean): RenderNode {
@@ -84,16 +79,45 @@ function bar(kit: Kit, surface: RenderSurface, plan: ProgressPlan, columns: numb
 
 export type RowOptions = { surface: RenderSurface; columns: number | undefined; isWorking: boolean }
 
-// Left: what is happening. Right: how far along it is.
+// The terminal lines it up with the spinner's text, the spinner's glyph being two cells.
+export const TERMINAL_INDENT = 2
+
+// Desktop: what is happening on the left, how far along on the right. Terminal:
+// one left-aligned line, bar first, as a terminal progress bar reads.
 export function progressRow(kit: Kit, plan: ProgressPlan, { surface, columns, isWorking }: RowOptions): RenderNode {
   const { Box, Text } = kit
   const s = summarize(plan)
   const words = wordsFor(isCjk(plan))
   const phase = phaseOf(plan, isWorking)
+  const count = (
+    <Text dimColor>
+      {s.position}/{s.total}
+    </Text>
+  )
+  if (surface === 'terminal') {
+    return (
+      <Box key="progress-row" flexDirection="row" columnGap={2} paddingLeft={TERMINAL_INDENT} flexShrink={1}>
+        {bar(kit, surface, plan, columns, false)}
+        {count}
+        {phase === 'done' ? (
+          <Box flexDirection="row" columnGap={1} flexShrink={1}>
+            <Text color={SUCCESS}>✓ {words.allDone}</Text>
+            {plan.goal !== '' && (
+              <Text dimColor wrap="truncate-end">
+                {plan.goal}
+              </Text>
+            )}
+          </Box>
+        ) : (
+          <Text wrap="truncate-end">{s.current?.title ?? ''}</Text>
+        )}
+      </Box>
+    )
+  }
   return (
     <Box key="progress-row" flexDirection="row" alignItems="center" columnGap={2} flexGrow={1} flexShrink={1}>
       <Box flexDirection="row" alignItems="center" columnGap={1} flexGrow={1} flexShrink={1}>
-        {phaseIcon(kit, surface, phase)}
+        {phaseIcon(kit, phase)}
         <Text wrap="truncate-end">{phase === 'done' ? words.allDone : (s.current?.title ?? '')}</Text>
         {phase === 'done' && plan.goal !== '' && (
           <Text dimColor wrap="truncate-end">
@@ -103,9 +127,7 @@ export function progressRow(kit: Kit, plan: ProgressPlan, { surface, columns, is
       </Box>
       <Box flexDirection="row" alignItems="center" columnGap={1} flexShrink={0}>
         {bar(kit, surface, plan, columns, phase === 'working')}
-        <Text dimColor>
-          {s.position}/{s.total}
-        </Text>
+        {count}
       </Box>
     </Box>
   )
@@ -114,7 +136,7 @@ export function progressRow(kit: Kit, plan: ProgressPlan, { surface, columns, is
 export function checklist(kit: Kit, surface: RenderSurface, plan: ProgressPlan, isWorking: boolean): RenderNode {
   const { Box, Text } = kit
   return (
-    <Box key="checklist" flexDirection="column">
+    <Box key="checklist" flexDirection="column" paddingLeft={surface === 'terminal' ? TERMINAL_INDENT : 0}>
       {plan.steps.map((step, i) => (
         <Box key={`step-${i}`} flexDirection="row" alignItems="center" columnGap={1}>
           {stepIcon(kit, surface, step.status, isWorking)}
@@ -125,6 +147,16 @@ export function checklist(kit: Kit, surface: RenderSurface, plan: ProgressPlan, 
       ))}
     </Box>
   )
+}
+
+// One line per report in the transcript: the plan when it is laid out, then the step
+// it moved to, then the finish.
+export function reportLine(plan: ProgressPlan): string {
+  const words = wordsFor(isCjk(plan))
+  const s = summarize(plan)
+  if (s.isComplete) return `${s.total}/${s.total} ${words.allDone}`
+  if (s.done === 0 && s.position === 1) return [words.planOf(s.total), plan.goal].filter(part => part !== '').join(' · ')
+  return `${s.position}/${s.total} ${s.current?.title ?? ''}`
 }
 
 export function textSummary(plan: ProgressPlan | null): string {

@@ -7,6 +7,7 @@ export type Words = {
   empty: string
   cleared: string
   stepsDone: (done: number, total: number) => string
+  planOf: (total: number) => string
 }
 
 const EN: Words = {
@@ -18,6 +19,7 @@ const EN: Words = {
   empty: 'No progress reported yet. It appears once Claude starts a multi-step task.',
   cleared: 'Progress cleared.',
   stepsDone: (done, total) => `${done}/${total} steps done`,
+  planOf: total => `Plan: ${total} steps`,
 }
 
 const ZH: Words = {
@@ -29,6 +31,7 @@ const ZH: Words = {
   empty: '还没有上报进度。Claude 开始多步骤任务后会显示在这里。',
   cleared: '进度已清空。',
   stepsDone: (done, total) => `已完成 ${done}/${total} 步`,
+  planOf: total => `计划 ${total} 步`,
 }
 
 // The plan's own language decides; it is what the person and Claude are speaking.

@@ -60,11 +60,7 @@ export function filled(done: number, total: number, width: number): number {
 }
 
 export function barWidth(columns: number | undefined): number {
-  return Math.max(8, Math.min(24, Math.floor((columns ?? 80) / 6)))
-}
-
-function toneOf(status: ProgressStatus): Tone {
-  return status === 'completed' ? 'done' : status === 'in_progress' ? 'current' : 'pending'
+  return Math.max(12, Math.min(30, Math.floor((columns ?? 80) / 5)))
 }
 
 function merge(runs: Run[]): Run[] {
@@ -76,27 +72,23 @@ function merge(runs: Run[]): Run[] {
   }, [])
 }
 
-// Terminal bar: one segment per step, or one continuous bar for long plans.
+// Terminal bar: one continuous line, since spaced segments read as a dashed rule
+// in most terminal fonts; the running step keeps one step's width of the accent.
 export function barRuns(steps: readonly ProgressStep[], width: number): Run[] {
   const n = steps.length
   if (n === 0) return []
-  if (n <= MAX_SEGMENTS && width >= n * 3 - 1) {
-    const segment = Math.max(2, Math.floor((width - (n - 1)) / n))
-    return steps.flatMap((step, i) => {
-      const run: Run = { text: '━'.repeat(segment), tone: toneOf(step.status) }
-      return i < n - 1 ? [run, { text: ' ', tone: 'pending' as const }] : [run]
-    })
-  }
   const done = filled(steps.filter(s => s.status === 'completed').length, n, width)
-  const running = steps.some(s => s.status === 'in_progress') ? Math.min(width - done, Math.max(1, Math.round(width / n))) : 0
+  const running = steps.some(s => s.status === 'in_progress')
+    ? Math.min(width - done, Math.max(1, Math.round(width / n)))
+    : 0
   return merge([
     { text: '━'.repeat(done), tone: 'done' },
     { text: '━'.repeat(running), tone: 'current' },
-    { text: '─'.repeat(width - done - running), tone: 'pending' },
+    { text: '━'.repeat(width - done - running), tone: 'pending' },
   ]).filter(run => run.text !== '')
 }
 
-const CJK = /[぀-ヿ㐀-鿿가-힯]/
+const CJK = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/
 
 export function isCjk(plan: ProgressPlan | null): boolean {
   if (plan === null) return false
