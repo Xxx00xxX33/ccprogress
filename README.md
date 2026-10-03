@@ -16,6 +16,12 @@ In a long session the spinner only tells you how long Claude has been working an
 ## See it
 
 <p align="center">
+  <img src="./assets/readme/live-desktop.png" width="100%" alt="A real Desktop app session: the band above the prompt unfolded into a six-step checklist, two steps done in green and the third running in orange">
+</p>
+
+<p align="center"><sub>From a real Desktop app session: step 3 of 6 is running, with the checklist unfolded.</sub></p>
+
+<p align="center">
   <img src="./assets/readme/desktop.svg" width="100%" alt="In the Desktop app the band above the prompt shows the current step, a segmented bar and the step count while working, unfolds into a checklist, and turns green when every step is done">
 </p>
 

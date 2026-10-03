@@ -16,6 +16,12 @@
 ## 效果
 
 <p align="center">
+  <img src="./assets/readme/live-desktop.png" width="100%" alt="真实的 Desktop 会话：输入框上方的进度栏展开成 6 步清单，前两步已完成（绿色），第三步正在进行（橙色）">
+</p>
+
+<p align="center"><sub>真实的 Desktop 会话：正在执行第 3/6 步，步骤清单已展开。</sub></p>
+
+<p align="center">
   <img src="./assets/readme/desktop.svg" width="100%" alt="在 Desktop 里，输入框上方的进度栏在执行中显示当前步骤、分段进度条和步数，可以展开成步骤清单，全部完成后变成绿色">
 </p>
 
